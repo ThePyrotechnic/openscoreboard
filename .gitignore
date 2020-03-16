@@ -1,0 +1,8 @@
+venv
+.idea
+__pycache__
+sample_demos
+*.tmp
+*.swp
+*.pyc
+*.dem
