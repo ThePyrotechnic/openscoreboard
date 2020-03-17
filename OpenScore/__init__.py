@@ -39,7 +39,7 @@ class Demo:
 
         self.tickrate = round(self.ticks / self.playback_time)
 
-    def __str__(self):
+    def __str__(self) -> str:
         with StringIO() as str_output:
             str_output.write(str(self.demo_path))
             str_output.write("\n")
