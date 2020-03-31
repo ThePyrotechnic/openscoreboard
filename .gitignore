@@ -2,6 +2,10 @@ venv
 .idea
 __pycache__
 sample_demos
+bin
+tmp
+protobuf-2.5.0
+CsProto
 *.tmp
 *.swp
 *.pyc
