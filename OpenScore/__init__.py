@@ -10,6 +10,7 @@ from typing import Dict, Union, List, Iterable, Tuple
 import yaml
 
 import OpenScore._Parser as Parser
+import OpenScore._Constants as Constants
 
 _logger = logging.getLogger(__name__)
 
@@ -211,9 +212,9 @@ class Demo:
                     self.gamestate._can_buy = True
 
                 elif event["event_type"] == "round_end":
-                    if event["winner"] == 2:
+                    if Constants.round_end_winners[event["winner"]] == "Terrorists":
                         self.gamestate.score["t"] += 1
-                    elif event["winner"] == 3:
+                    elif Constants.round_end_winners[event["winner"]] == "Counter-Terrorists":
                         self.gamestate.score["ct"] += 1
                     self.gamestate.rounds[-1].end_reason = event["reason"]
                     self.gamestate.rounds[-1].end_tick = event["tick"]
