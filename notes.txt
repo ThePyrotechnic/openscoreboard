@@ -1,0 +1,17 @@
+round_freeze_end    tick: 66809
+weapon_zoom         tick: 68005
+weapon_zoom         tick: 68081
+weapon_zoom         tick: 68545
+weapon_zoom         tick: 68685
+weapon_zoom         tick: 68813
+weapon_zoom         tick: 69187
+weapon_zoom         tick: 69303
+weapon_zoom         tick: 69497
+weapon_zoom         tick: 69537
+weapon_zoom         tick: 69767
+weapon_zoom         tick: 70641
+weapon_zoom         tick: 70839
+weapon_zoom         tick: 71169
+weapon_zoom         tick: 72361
+weapon_fire         tick: 72873
+weapon_zoom         tick: 74553

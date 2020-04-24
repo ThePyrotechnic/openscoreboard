@@ -165,12 +165,12 @@ class Demo:
                 player_id, attacker_id, assister_id = None, None, None
 
                 # Set IDs and update last known positions
-                # There will never bee an attacker/assister without a player/attacker, so keep these nested
+                # There will never be an attacker/assister without a player/attacker, so keep these nested
                 if event.get("userid"):
                     player_id = event["userid"]["player_id"]
                     current_round_players[player_id].update_orientation(event["userid"], event["tick"])
 
-                    if event.get("attacker_id"):
+                    if event.get("attacker"):
                         attacker_id = event["attacker"]["player_id"]
                         current_round_players[attacker_id].update_orientation(event["attacker"], event["tick"])
 
