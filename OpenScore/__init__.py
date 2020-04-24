@@ -1,4 +1,4 @@
-from _collections import defaultdict
+from collections import defaultdict
 from dataclasses import dataclass, field
 import logging
 import math
@@ -34,6 +34,12 @@ def str_to_path(path: Union[str, PathLike]) -> PathLike:
     return path
 
 
+@dataclass
+class Defusal:
+    success: bool = False
+    defuse_tick: int = None
+
+
 class Weapon:
     pass
 
@@ -64,6 +70,7 @@ class Player:
     started_with_bomb: int = False
     bomb_carry_intervals: List[Tuple[int, int]] = field(default_factory=list)
     bomb_planted_tick: int = None
+    bomb_defusal_attempts: List[Defusal] = field(default_factory=list)
 
     _bomb_carry_start: int = None
 
@@ -251,6 +258,19 @@ class Demo:
 
                     if event["event_type"] == "bomb_planted":
                         current_round_players[player_id].bomb_planted_tick = event["tick"]
+
+                elif event["event_type"] == "bomb_begindefuse":
+                    defusal = Defusal()
+                    _add_dict_keys_to_obj(
+                        ["userid", "haskit", "tick"],
+                        event,
+                        defusal
+                    )
+                    current_round_players[player_id].bomb_defusal_attempts.append(defusal)
+
+                elif event["event_type"] == "bomb_defused":
+                    current_round_players[player_id].bomb_defusal_attempts[-1].success = True
+                    current_round_players[player_id].bomb_defusal_attempts[-1].defuse_tick = event["tick"]
 
                 elif event["event_type"] == "player_footstep":
                     current_round_players[player_id].footsteps += 1
