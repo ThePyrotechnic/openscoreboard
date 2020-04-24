@@ -5,8 +5,8 @@ import OpenScore
 
 
 def main(args):
-    d = OpenScore.Demo(args.demo, args.type, args.config)
-    d.parse_demo(args.skip_processing)
+    d = OpenScore.Demo(args.demo, args.type, args.config, args.skip_processing)
+    gamestate = d.gamestate  # Parsed match data is here
     pass
 
 

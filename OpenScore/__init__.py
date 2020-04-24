@@ -15,11 +15,11 @@ _logger = logging.getLogger(__name__)
 
 
 # TODO see usage; there must be a better way to do that with dataclasses
-def defaultdict_int():
+def _defaultdict_int():
     return defaultdict(int)
 
 
-def add_dict_keys_to_obj(keys: Iterable[str], from_dict: dict, obj: object):
+def _add_dict_keys_to_obj(keys: Iterable[str], from_dict: dict, obj: object):
     """
     For each specified key in the dict, set obj's values to from_dict's value at the key.
     Update references only; do not copy object values.
@@ -28,30 +28,36 @@ def add_dict_keys_to_obj(keys: Iterable[str], from_dict: dict, obj: object):
         obj.__dict__[k] = from_dict[k]
 
 
-class _Weapon:
+def str_to_path(path: Union[str, PathLike]) -> PathLike:
+    if isinstance(path, str):
+        path = Path(path)
+    return path
+
+
+class Weapon:
     pass
 
 
-class _Shot:
+class Shot:
     pass
 
 
-class _Hit:
+class Hit:
     pass
 
 
-class _Death:
+class Death:
     pass
 
 
 @dataclass
-class _Player:
-    shots: List[_Shot] = field(default_factory=list)
-    hits_given: List[_Hit] = field(default_factory=list)
-    hits_taken: List[_Hit] = field(default_factory=list)
-    kills: List[_Death] = field(default_factory=list)
-    deaths: List[_Death] = field(default_factory=list)
-    assists: List[_Death] = field(default_factory=list)
+class Player:
+    shots: List[Shot] = field(default_factory=list)
+    hits_given: List[Hit] = field(default_factory=list)
+    hits_taken: List[Hit] = field(default_factory=list)
+    kills: List[Death] = field(default_factory=list)
+    deaths: List[Death] = field(default_factory=list)
+    assists: List[Death] = field(default_factory=list)
     last_orientation: dict = field(default_factory=dict)
     orientation_history: List[Dict[str, Dict]] = field(default_factory=list)
     footsteps: int = 0
@@ -80,38 +86,41 @@ class _Player:
             _logger.info("Ignoring position update for player 0")
 
 
-class _Round:
+class Round:
     def __init__(self, start_tick: int, overtime: bool = False):
-        self.players: Dict[int, _Player] = defaultdict(_Player)
+        self.players: Dict[int, Player] = defaultdict(Player)
         self.overtime: bool = overtime
         self.start_tick = start_tick
 
 
 @dataclass
-class _GameState:
-    time: int = 0
+class GameState:
     round: int = 0
     match_is_live: bool = False
-    can_buy: bool = False
-    score: dict = field(default_factory=defaultdict_int)
-    rounds: List[_Round] = field(default_factory=list)
-    overtime: bool = False
-    overtime_count = 0
+    score: dict = field(default_factory=_defaultdict_int)
+    rounds: List[Round] = field(default_factory=list)
+
+    _can_buy: bool = False
+    _overtime: bool = False
+    _overtime_count = 0
 
 
 class Demo:
-    def __init__(self, demo_path: Union[str, PathLike], demo_type: str, config_path: Union[str, PathLike]):
+    def __init__(self, demo_path: Union[str, PathLike], demo_type: str, config_path: Union[str, PathLike],
+                 skip_processing: bool = False):
         # Convert string paths to path objects for ease of use
-        self.demo_type = demo_type
-        self.demo_path = str_to_path(demo_path)
-        self.config_path = str_to_path(config_path)
+        self._demo_type = demo_type
+        self._demo_path = str_to_path(demo_path)
+        self._config_path = str_to_path(config_path)
         self.gamestate = None
         self.tick_rate = 64 if demo_type == "valve" else 128  # TODO extract from demo
         self.freeze_time = 15
         self.buy_time = 20 if demo_type == "valve" else 15
 
-        with open(self.config_path) as config_file:
+        with open(self._config_path) as config_file:
             self._config = yaml.safe_load(config_file)
+
+        self._parse_demo(skip_processing)
 
     def time_to_ticks(self, seconds: float) -> int:
         """
@@ -129,7 +138,7 @@ class Demo:
         """
         return math.ceil(ticks / self.tick_rate)
 
-    def parse_demo(self, skip_processing: bool = False):
+    def _parse_demo(self, skip_processing: bool = False):
         tmp_dir = Path(self._config["tmp_dir"])
         tmp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -138,26 +147,26 @@ class Demo:
 
         if not skip_processing:
             with open(output_path, "w") as output_file:
-                subprocess.run([demoinfogo_exe, self.demo_path, "-gameevents", "-extrainfo"],
+                subprocess.run([demoinfogo_exe, self._demo_path, "-gameevents", "-extrainfo"],
                                stdout=output_file, check=True)
 
         # Reset the gamestate
-        self.gamestate = _GameState()
+        self.gamestate = GameState()
 
         restart_counter = 0  # For ESEA demos
         for event in Parser.parse(output_path):
             if not self.gamestate.match_is_live:  # Ignore the warmup
-                if self.demo_type == "esea":
+                if self._demo_type == "esea":
                     if event["event_type"] == "begin_new_match":
                         restart_counter += 1
                         if restart_counter == 4:
                             restart_counter = 0
                             self.gamestate.round += 1
                             self.gamestate.match_is_live = True
-                            self.gamestate.can_buy = True
+                            self.gamestate._can_buy = True
                             self.gamestate.round_start_tick = event["tick"]
-                            self.gamestate.rounds.append(_Round(start_tick=event["tick"]))
-                elif self.demo_type == "valve":
+                            self.gamestate.rounds.append(Round(start_tick=event["tick"]))
+                elif self._demo_type == "valve":
                     raise NotImplementedError("Valve demos are not currently supported")
 
             else:  # Match is live
@@ -179,18 +188,18 @@ class Demo:
                             current_round_players[assister_id].update_orientation(event["assister"], event["tick"])
 
                 # If buy_time + freeze_time seconds have passed, buy time is expired
-                if self.gamestate.can_buy and \
+                if self.gamestate._can_buy and \
                         self.ticks_to_time(
                             event["tick"] - self.gamestate.round_start_tick) > self.buy_time + self.freeze_time:
-                    self.gamestate.can_buy = False
+                    self.gamestate._can_buy = False
 
                 # This occurs on the first tick of a new round
                 # (When players respawn at the buyzones)
                 if event["event_type"] == "round_prestart":
                     self.gamestate.round += 1
-                    self.gamestate.rounds.append(_Round(overtime=self.gamestate.overtime, start_tick=event["tick"]))
+                    self.gamestate.rounds.append(Round(overtime=self.gamestate._overtime, start_tick=event["tick"]))
                     self.gamestate.round_start_tick = event["tick"]
-                    self.gamestate.can_buy = True
+                    self.gamestate._can_buy = True
 
                 elif event["event_type"] == "round_end":
                     if event["winner"] == 2:
@@ -198,8 +207,8 @@ class Demo:
                     elif event["winner"] == 3:
                         self.gamestate.score["ct"] += 1
 
-                    if self.demo_type == "esea":
-                        if self.gamestate.overtime:
+                    if self._demo_type == "esea":
+                        if self.gamestate._overtime:
                             # Someone won in overtime
                             if self.gamestate.score["t"] == overtime_score_target or \
                                     self.gamestate.score["ct"] == overtime_score_target:
@@ -216,12 +225,12 @@ class Demo:
 
                             # Overtime
                             if self.gamestate.score["t"] == 15 and self.gamestate.score["ct"] == 15:
-                                self.gamestate.overtime = True
+                                self.gamestate._overtime = True
                                 overtime_score_target = 19
 
                         # Switch sides
                         if self.gamestate.round == 15:
-                            if self.demo_type == "esea":  # Must wait 3 more restarts
+                            if self._demo_type == "esea":  # Must wait 3 more restarts
                                 # NOTE: This means that all events after the "T/CTs win" message will be ignored
                                 self.gamestate.match_is_live = False
 
@@ -248,8 +257,8 @@ class Demo:
 
                 elif event["event_type"] == "weapon_fire":
                     player_id = event["userid"]["player_id"]
-                    shot = _Shot()
-                    add_dict_keys_to_obj(
+                    shot = Shot()
+                    _add_dict_keys_to_obj(
                         ["userid", "weapon", "silenced", "tick"],
                         event,
                         shot
@@ -257,8 +266,8 @@ class Demo:
                     current_round_players[player_id].shots.append(shot)
 
                 elif event["event_type"] == "player_death":
-                    death = _Death()
-                    add_dict_keys_to_obj(
+                    death = Death()
+                    _add_dict_keys_to_obj(
                         ["userid", "attacker", "assister", "assistedflash", "weapon", "weapon_itemid", "headshot",
                          "penetrated", "tick"],
                         event,
@@ -270,8 +279,8 @@ class Demo:
 
                 elif event["event_type"] == "player_hurt":
                     if player_id != 0:
-                        hit = _Hit()
-                        add_dict_keys_to_obj(
+                        hit = Hit()
+                        _add_dict_keys_to_obj(
                             ["userid", "attacker", "health", "armor", "weapon", "dmg_health", "dmg_armor",
                              "hitgroup", "tick"],
                             event,
@@ -279,11 +288,3 @@ class Demo:
                         )
                         current_round_players[player_id].hits_taken.append(hit)
                         current_round_players[attacker_id].hits_given.append(hit)
-
-        print(self.gamestate.score["t"], self.gamestate.score["ct"])
-
-
-def str_to_path(path: Union[str, PathLike]) -> PathLike:
-    if isinstance(path, str):
-        path = Path(path)
-    return path
