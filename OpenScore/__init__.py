@@ -98,6 +98,8 @@ class Round:
         self.players: Dict[int, Player] = defaultdict(Player)
         self.overtime: bool = overtime
         self.start_tick = start_tick
+        self.end_tick = None
+        self.end_reason = None
 
 
 @dataclass
@@ -194,7 +196,7 @@ class Demo:
                             assister_id = event["assister"]["player_id"]
                             current_round_players[assister_id].update_orientation(event["assister"], event["tick"])
 
-                # If buy_time + freeze_time seconds have passed, buy time is expired
+                # If buy_time + freeze_time seconds have passed, buy time has expired
                 if self.gamestate._can_buy and \
                         self.ticks_to_time(
                             event["tick"] - self.gamestate.round_start_tick) > self.buy_time + self.freeze_time:
@@ -213,6 +215,8 @@ class Demo:
                         self.gamestate.score["t"] += 1
                     elif event["winner"] == 3:
                         self.gamestate.score["ct"] += 1
+                    self.gamestate.rounds[-1].end_reason = event["reason"]
+                    self.gamestate.rounds[-1].end_tick = event["tick"]
 
                     if self._demo_type == "esea":
                         if self.gamestate._overtime:
